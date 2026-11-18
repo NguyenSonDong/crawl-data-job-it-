@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.ipynb_checkpoints/
+data/linkedin-profile-webkit/
+
+# Rác hệ điều hành / IDE
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/

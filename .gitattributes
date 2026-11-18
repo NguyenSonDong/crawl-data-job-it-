@@ -1,0 +1,14 @@
+# Chuẩn hoá xuống dòng giữa Windows (CRLF) và macOS/Linux (LF)
+* text=auto eol=lf
+
+# Script PowerShell/Batch giữ CRLF cho Windows
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Dữ liệu và file nhị phân
+*.csv  text eol=lf
+*.jsonl text eol=lf
+*.png  binary
+*.jpg  binary
+*.xlsx binary
