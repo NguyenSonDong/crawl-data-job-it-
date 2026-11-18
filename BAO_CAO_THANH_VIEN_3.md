@@ -4,7 +4,7 @@
 > **Học phần:** Khai Phá Dữ Liệu (`ITEC3417`)  
 > **Thành viên thực hiện:** Huỳnh Hữu Phước 
 > **Phạm vi phụ trách:** Thành viên 3 (33% khối lượng đồ án) — Decision Tree, Random Forest, Đánh giá mô hình và Tổng hợp kết quả.  
-> **Nhánh Git:** `thanh-vien-3`  
+> **Nhánh Git:** `thanh_vien_3`  
 > **Ngày:** 18/11/2026
 > **Sản phẩm bàn giao:** `TV3_Classification_Decision_Tree.ipynb`, `BAO_CAO_THANH_VIEN_3.md`.
 
