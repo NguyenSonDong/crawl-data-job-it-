@@ -172,7 +172,7 @@ def _extract_salary_from_string(raw_str: str) -> tuple[float | None, float | Non
     ):
         return None, None
 
-    # Xác định đơn vị tiền tệ: USD hay Triệu VNĐ
+    # Xác định đơn vị tiền tệ: USD hay Triệu VNĐ, và chu kỳ trả lương (/năm vs /tháng)
     is_usd = bool(re.search(r"(\$|usd)", s_lower))
     is_vnd_unit = bool(
         re.search(r"(triệu|trieu|\btr\b|\bm\b|vnđ|vnd|đồng)", s_lower)
@@ -180,7 +180,12 @@ def _extract_salary_from_string(raw_str: str) -> tuple[float | None, float | Non
     if not is_usd and not is_vnd_unit:
         return None, None
 
+    is_annual = bool(
+        re.search(r"(/\s*năm|\btheo\s+năm\b|/\s*year|\bper\s+year\b|\bannually\b)", s_lower)
+    )
     multiplier = USD_TO_MILLION_VND if is_usd else 1.0
+    if is_annual:
+        multiplier = multiplier / 12.0
 
     # --- MẪU 1: KHOẢNG LƯƠNG (Min - Max) ---
     m_range = re.search(
@@ -211,7 +216,8 @@ def _extract_salary_from_string(raw_str: str) -> tuple[float | None, float | Non
         if raw_v:
             val = _parse_number(raw_v) * multiplier
             if MIN_VALID_SALARY_M <= val <= MAX_VALID_SALARY_M:
-                return round(val * 0.7, 2), round(val, 2)
+                low_est = max(round(val * 0.7, 2), MIN_VALID_SALARY_M)
+                return low_est, round(val, 2)
             return None, None
 
     # --- MẪU 3: LƯƠNG CẬN DƯỚI (Từ / Trên / Over / From / Min / Tối thiểu) ---
@@ -505,7 +511,7 @@ def clean_jd_text(text: str) -> str:
 DATA_SKILL_GROUPS: dict[str, dict[str, re.Pattern]] = {
     "Group_1_Programming_Query": {
         "Python": re.compile(r"\bpython\b", re.IGNORECASE),
-        "SQL": re.compile(r"\b(sql|t-sql|pl/sql|nosql|mysql|postgresql|mssql)\b", re.IGNORECASE),
+        "SQL": re.compile(r"\b(sql|t-sql|pl/sql|mysql|postgresql|mssql)\b", re.IGNORECASE),
         # Chống bắt nhầm (Zero False-Positives): Chỉ bắt chữ 'R' khi đi kèm ngữ cảnh lập trình/phân tích dữ liệu
         "R": re.compile(
             r"("
@@ -529,7 +535,7 @@ DATA_SKILL_GROUPS: dict[str, dict[str, re.Pattern]] = {
         "Looker": re.compile(r"\b(looker|lookml|google\s+data\s+studio|looker\s+studio|superset|metabase|qlik)\b", re.IGNORECASE),
         "Excel": re.compile(r"\b(excel|vba|pivot\s+table|google\s+sheets?|spreadsheet)\b", re.IGNORECASE),
         "Statistics": re.compile(
-            r"\b(statistics|statistical|thống\s+kê|xác\s+suất|hypothesis\s+testing|regression|quantitative| định\s+lượng)\b",
+            r"\b(statistics|statistical|thống\s+kê|xác\s+suất|hypothesis\s+testing|regression|quantitative|định\s+lượng)\b",
             re.IGNORECASE,
         ),
         "AB_Testing": re.compile(r"\b(a/b\s*testing|ab\s*testing|a/b\s*test|experimentation)\b", re.IGNORECASE),
@@ -749,6 +755,10 @@ def run_cleaning_pipeline(
     df["Khoang_Luong_Phan_Lop"] = [
         classify_salary_bracket(val) for val in df["Luong_Trung_Binh_Imputed"]
     ]
+    df["Khoang_Luong_Thuc"] = [
+        classify_salary_bracket(val) if pd.notna(val) else np.nan
+        for val in df["Luong_Trung_Binh"]
+    ]
 
     # 4. Làm sạch văn bản JD & Bóc tách Ma trận One-Hot 60 kỹ năng chuyên sâu ngành Data
     df["Mo_Ta_Lam_Sach"] = [clean_jd_text(desc) for desc in df["Mo_Ta_Cong_Viec"]]
@@ -762,11 +772,8 @@ def run_cleaning_pipeline(
     so_luong_ky_nang: list[int] = []
     for sdict in skill_dicts:
         present = [k for k, v in sdict.items() if v == 1]
-        danh_sach_ky_nang.append("; ".join(present) if present else "SQL; Python")
-        so_luong_ky_nang.append(len(present) if present else 2)
-        if not present:
-            sdict["SQL"] = 1
-            sdict["Python"] = 1
+        danh_sach_ky_nang.append("; ".join(present) if present else "Chưa ghi nhận")
+        so_luong_ky_nang.append(len(present))
 
     df["Danh_Sach_Ky_Nang"] = danh_sach_ky_nang
     df["So_Luong_Ky_Nang"] = so_luong_ky_nang
@@ -797,6 +804,7 @@ def run_cleaning_pipeline(
         "Luong_Trung_Binh",
         "Luong_Trung_Binh_Imputed",
         "Khoang_Luong_Phan_Lop",
+        "Khoang_Luong_Thuc",
         "Danh_Sach_Ky_Nang",
         "So_Luong_Ky_Nang",
         "Mo_Ta_Cong_Viec",
@@ -814,7 +822,7 @@ def run_cleaning_pipeline(
     print("\n📊 KẾT QUẢ KIỂM ĐỊNH CHẤT LƯỢNG DỮ LIỆU SAU LÀM SẠCH (`clean_data.csv`):")
     print(f"   • Tổng số bản ghi sạch     : {len(df)} dòng")
     print(
-        f"   • Tổng số thuộc tính (cột) : {len(df.columns)} cột (25 cột chuẩn + {len(skill_cols)} cột One-Hot Skill_*)"
+        f"   • Tổng số thuộc tính (cột) : {len(df.columns)} cột ({len(ordered_base_cols)} cột chuẩn + {len(skill_cols)} cột One-Hot Skill_*)"
     )
     print(f"\n1️⃣ Phân bổ theo Nhóm Ngành Data (`Nhom_Nganh_Data`):")
     for grp, cnt in df["Nhom_Nganh_Data"].value_counts().items():
