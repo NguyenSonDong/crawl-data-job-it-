@@ -225,7 +225,7 @@ def build_rich_description(row: dict, title: str) -> str:
         )
     else:
         synthesized.append(
-            "Mô tả: Xây dựng, phân tích, khai thác cơ sở dữ liệu (SQL, Python, BI, ETL, Data Pipeline) và phát triển hệ thống thông tin doanh nghiệp."
+            "Mô tả: Tin tuyển dụng thu thập từ thẻ tóm tắt danh sách (chưa có nội dung JD chi tiết)."
         )
     return "\n".join(synthesized)
 
